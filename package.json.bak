@@ -1,0 +1,12 @@
+{
+  "name": "zashi-messaging",
+  "version": "1.0.0",
+  "description": "Ứng dụng nhắn tin Zashi",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^26.0.0" 
+  }
+}
