@@ -1,32 +1,43 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <title>Zashi Messaging</title>
-  <link rel="stylesheet" href="style.css">
-</head>
 <body>
   <h1>Zashi Messaging</h1>
-  <div id="chat" style="height:300px; overflow:auto; border:1px solid #ccc;"></div>
-  <input id="msg" placeholder="Nhập tin nhắn..." />
-  <button onclick="send()">Gửi</button>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <div id="login">
+    <input id="username" placeholder="Nhập tên của bạn...">
+    <button onclick="login()">Vào Chat</button>
+  </div>
+
+  <div id="chatbox" style="display: none;">
+    <div id="chat"></div>
+    <input id="msg" placeholder="Nhập tin nhắn...">
+    <button onclick="send()">Gửi</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io('http://localhost:3001');
-    const chat = document.getElementById('chat');
+    let socket;
+    let username = '';
 
-    socket.on('loadMessages', (msgs) => {
-      msgs.forEach(addMessage);
-    });
+    function login() {
+      username = document.getElementById('username').value.trim();
+      if (username) {
+        socket = io({ query: { username } });
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('chatbox').style.display = 'block';
 
-    socket.on('newMessage', (msg) => {
-      addMessage(msg);
-    });
+        socket.on('newMessage', (data) => {
+          addMessage(data.username, data.message);
+        });
 
-    function addMessage(msg) {
+        socket.on('loadMessages', (msgs) => {
+          msgs.forEach((data) => addMessage(data.username, data.message));
+        });
+      }
+    }
+
+    function addMessage(user, msg) {
+      const chat = document.getElementById('chat');
       const div = document.createElement('div');
-      div.textContent = msg;
+      div.textContent = `${user}: ${msg}`;
       chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;
     }
@@ -41,4 +52,3 @@
     }
   </script>
 </body>
-</html>

@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <title>Zashi Messaging</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #chat { height:300px; overflow:auto; border:1px solid #ccc; margin-top:10px; padding:5px; }
+    .message { margin: 5px 0; }
+    .message b { color: blue; }
+  </style>
 </head>
 <body>
   <h1>Zashi Messaging</h1>
@@ -11,39 +17,55 @@
   <label for="username">Tên người dùng:</label>
   <input id="username" placeholder="Nhập tên của bạn..." />
 
-  <div id="chat" style="height:300px; overflow:auto; border:1px solid #ccc; margin-top:10px;"></div>
-  <input id="msg" placeholder="Nhập tin nhắn..." />
-  <button onclick="send()">Gửi</button>
+  <button onclick="join()">Vào Chat</button>
+
+  <div id="chatbox" style="display: none;">
+    <div id="chat"></div>
+    <input id="msg" placeholder="Nhập tin nhắn..." />
+    <button onclick="send()">Gửi</button>
+  </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    const socket = io('http://localhost:3001');
-    const chat = document.getElementById('chat');
+    let socket;
+    let username = '';
 
-    socket.on('loadMessages', (msgs) => {
-      msgs.forEach(addMessage);
-    });
+    function join() {
+      username = document.getElementById('username').value.trim();
+      if (!username) {
+        alert('Nhập tên người dùng!');
+        return;
+      }
+      socket = io('http://localhost:3001');
+      document.getElementById('chatbox').style.display = 'block';
 
-    socket.on('newMessage', (msgObj) => {
-      addMessage(msgObj);
-    });
+      // Nhận tin nhắn từ server
+      socket.on('loadMessages', (msgs) => {
+        msgs.forEach(addMessage);
+      });
+
+      socket.on('newMessage', (msgObj) => {
+        addMessage(msgObj);
+      });
+    }
 
     function addMessage({ user, text }) {
+      const chat = document.getElementById('chat');
       const div = document.createElement('div');
+      div.className = 'message';
       div.innerHTML = `<b>${user}:</b> ${text}`;
       chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;
     }
 
     function send() {
-      const user = document.getElementById('username').value.trim();
       const text = document.getElementById('msg').value.trim();
-      if (user && text) {
-        socket.emit('sendMessage', { user, text });
-        document.getElementById('msg').value = '';
-      } else {
-        alert('Nhập tên người dùng và tin nhắn!');
+      if (!text) {
+        alert('Nhập tin nhắn!');
+        return;
       }
+      socket.emit('sendMessage', { user: username, text });
+      document.getElementById('msg').value = '';
     }
   </script>
 </body>
