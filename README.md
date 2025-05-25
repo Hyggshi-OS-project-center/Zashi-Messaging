@@ -1,2 +1,15 @@
-# Zashi-Messaging
-Zashi Messaging is a simple messaging app using Electron + Socket.io. The current version only supports sending/receiving basic messages. In the future, more features will be added: history, images, notifications, user profiles...
+# Zashi Messaging
+
+Zashi Messaging is an experimental messaging application developed using **Electron + Node.js**.
+
+## Features
+- Send and receive basic messages.
+
+Cross-platform (Windows / Linux / MacOS).
+
+- Lightweight, easy-to-use interface.
+
+## Test run instructions
+```bash
+npm install
+npm start
