@@ -1,12 +1,18 @@
 {
   "name": "zashi-messaging",
   "version": "1.0.0",
-  "description": "Ứng dụng nhắn tin Zashi",
   "main": "main.js",
   "scripts": {
     "start": "electron ."
   },
   "dependencies": {
-    "electron": "^26.0.0" 
-  }
+    "electron": "^26.6.10",
+    "express": "^4.21.2",
+    "multer": "^2.0.0",
+    "socket.io": "^4.8.1"
+  },
+  "description": "Zashi Messaging is an experimental messaging application developed using **Electron + Node.js**.",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

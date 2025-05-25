@@ -1,59 +1,97 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <title>Zashi Messaging</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    #chat { height:300px; overflow:auto; border:1px solid #ccc; margin-top:10px; padding:5px; }
-    .message { margin: 5px 0; }
-    .message b { color: blue; }
-  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Zashi Messaging</h1>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4">
+  <div class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+    <div class="p-4 space-y-4">
+      <h1 class="text-2xl font-bold text-center">Zashi Messaging</h1>
 
-  <label for="username">Tên người dùng:</label>
-  <input id="username" placeholder="Nhập tên của bạn..." />
+      <div id="loginBox" class="space-y-3">
+        <label for="username" class="block text-base font-semibold">Tên người dùng:</label>
+        <input id="username" class="w-full px-4 py-3 text-lg border rounded-md" placeholder="Nhập tên của bạn..." />
 
-  <button onclick="join()">Vào Chat</button>
+        <label for="group" class="block text-base font-semibold">Nhóm chat:</label>
+        <input id="group" class="w-full px-4 py-3 text-lg border rounded-md" placeholder="Nhập tên nhóm..." />
 
-  <div id="chatbox" style="display: none;">
-    <div id="chat"></div>
-    <input id="msg" placeholder="Nhập tin nhắn..." />
-    <button onclick="send()">Gửi</button>
+        <button onclick="join()" class="w-full bg-blue-500 text-white font-bold py-3 rounded hover:bg-blue-600 text-lg">Vào Chat</button>
+      </div>
+
+      <div id="chatbox" class="hidden flex flex-col h-96">
+        <div id="chat" class="flex-1 overflow-y-auto p-3 border rounded bg-gray-50 dark:bg-gray-700 space-y-2 text-base"></div>
+
+        <div class="flex items-center space-x-2 mt-3">
+          <input id="msg" class="flex-1 px-4 py-3 text-lg border rounded-md" placeholder="Nhập tin nhắn..." />
+          <button onclick="send()" class="bg-green-500 text-white px-4 py-3 rounded hover:bg-green-600 text-lg">Gửi</button>
+        </div>
+
+        <div class="flex items-center space-x-2 mt-2">
+          <input type="file" id="fileInput" class="flex-1 text-base" />
+          <button onclick="sendFile()" class="bg-purple-500 text-white px-3 py-2 rounded hover:bg-purple-600 text-base">Gửi File</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
     let socket;
     let username = '';
+    let group = '';
+
+    function getAvatarUrl(name) {
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&size=64&bold=true`;
+    }
 
     function join() {
       username = document.getElementById('username').value.trim();
-      if (!username) {
-        alert('Nhập tên người dùng!');
+      group = document.getElementById('group').value.trim();
+
+      if (!username || !group) {
+        alert('Nhập tên người dùng và nhóm!');
         return;
       }
-      socket = io('http://localhost:3001');
-      document.getElementById('chatbox').style.display = 'block';
 
-      // Nhận tin nhắn từ server
+      socket = io('http://localhost:3001');
+      document.getElementById('loginBox').classList.add('hidden');
+      document.getElementById('chatbox').classList.remove('hidden');
+
+      socket.emit('joinGroup', group);
+
       socket.on('loadMessages', (msgs) => {
+        document.getElementById('chat').innerHTML = ''; // Reset chat
         msgs.forEach(addMessage);
       });
 
       socket.on('newMessage', (msgObj) => {
         addMessage(msgObj);
       });
+
+      socket.on('newFile', ({ user, filename, url }) => {
+        const chat = document.getElementById('chat');
+        const div = document.createElement('div');
+        div.className = 'flex items-center space-x-2 p-2 bg-white dark:bg-gray-700 rounded';
+        div.innerHTML = `
+          <img src="${getAvatarUrl(user)}" alt="avatar" class="w-8 h-8 rounded-full">
+          <div><b class="text-blue-500">${user}:</b> <a href="${url}" class="text-blue-500 underline" target="_blank">${filename}</a></div>
+        `;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+      });
     }
 
     function addMessage({ user, text }) {
       const chat = document.getElementById('chat');
       const div = document.createElement('div');
-      div.className = 'message';
-      div.innerHTML = `<b>${user}:</b> ${text}`;
+      div.className = 'flex items-center space-x-2 p-2 bg-white dark:bg-gray-700 rounded';
+      div.innerHTML = `
+        <img src="${getAvatarUrl(user)}" alt="avatar" class="w-8 h-8 rounded-full">
+        <div><b class="text-blue-500">${user}:</b> ${text}</div>
+      `;
       chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;
     }
@@ -64,8 +102,34 @@
         alert('Nhập tin nhắn!');
         return;
       }
-      socket.emit('sendMessage', { user: username, text });
+      socket.emit('sendMessage', { user: username, text, group });
       document.getElementById('msg').value = '';
+    }
+
+    function sendFile() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+      if (!file) {
+        alert('Chọn file!');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('user', username);
+      formData.append('group', group);
+
+      fetch('http://localhost:3001/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('File uploaded:', data);
+      })
+      .catch(err => console.error('Upload error:', err));
+
+      fileInput.value = '';
     }
   </script>
 </body>

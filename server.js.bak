@@ -1,21 +1,43 @@
 const express = require('express');
 const http = require('http');
+const cors = require('cors');
 const { Server } = require('socket.io');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
+// Thiết lập server
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: { origin: "*" }
+});
 
-let messages = [];
+app.use(cors());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Lưu tin nhắn theo nhóm
+let groupMessages = {};
+
+// Gửi tin nhắn
 io.on('connection', (socket) => {
   console.log('Client connected');
 
-  socket.emit('loadMessages', messages);
+  socket.on('joinGroup', (group) => {
+    socket.join(group);
+    console.log(`Client joined group: ${group}`);
 
-  socket.on('sendMessage', (msg) => {
-    messages.push(msg);
-    io.emit('newMessage', msg);
+    if (!groupMessages[group]) groupMessages[group] = [];
+
+    socket.emit('loadMessages', groupMessages[group]);
+  });
+
+  socket.on('sendMessage', (msgObj) => {
+    const { group } = msgObj;
+    if (!group || !groupMessages[group]) return;
+
+    groupMessages[group].push(msgObj);
+    io.to(group).emit('newMessage', msgObj);
   });
 
   socket.on('disconnect', () => {
@@ -23,6 +45,38 @@ io.on('connection', (socket) => {
   });
 });
 
+// Xử lý gửi file
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, 'uploads');
+    if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath);
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, unique + '-' + file.originalname);
+  }
+});
+
+const upload = multer({ storage });
+
+app.post('/upload', upload.single('file'), (req, res) => {
+  const user = req.body.user;
+  const group = req.body.group;
+  const filename = req.file.originalname;
+  const url = `http://localhost:3001/uploads/${req.file.filename}`;
+
+  if (!groupMessages[group]) groupMessages[group] = [];
+
+  const fileMsg = { user, filename, url };
+  groupMessages[group].push(fileMsg);
+
+  io.to(group).emit('newFile', fileMsg);
+
+  res.json({ success: true, url });
+});
+
+// Start server
 server.listen(3001, () => {
   console.log('Server chạy trên cổng 3001');
 });
