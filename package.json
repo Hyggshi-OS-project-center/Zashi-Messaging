@@ -9,13 +9,21 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cheerio": "^1.1.0",
     "cors": "^2.8.5",
-    "electron": "^26.0.0",
+    "emoji-picker-react": "^4.12.2",
     "express": "^4.21.2",
     "multer": "^2.0.0",
-    "socket.io": "^4.8.1"
+    "node-fetch": "^2.7.0",
+    "picmo": "^5.8.5",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
-    "electron-packager": "^17.1.2"
-  }
+    "electron": "^36.3.1",
+    "electron-packager": "^17.1.2",
+    "tailwindcss": "^4.1.7"
+  },
+  "keywords": []
 }

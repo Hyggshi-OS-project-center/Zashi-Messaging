@@ -1,136 +1,865 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Zashi Messaging</title>
+  <title>Zashi Messaging - Auth</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .msg-animate {
+      animation: msgFadeInUp 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    @keyframes msgFadeInUp {
+      0% {
+        opacity: 0;
+        transform: translateY(30px) scale(0.98);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    .theme-transition {
+      transition: background-color 0.4s, color 0.4s;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4">
-  <div class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-    <div class="p-4 space-y-4">
-      <h1 class="text-2xl font-bold text-center">Zashi Messaging</h1>
-
-      <div id="loginBox" class="space-y-3">
-        <label for="username" class="block text-base font-semibold">Tên người dùng:</label>
-        <input id="username" class="w-full px-4 py-3 text-lg border rounded-md" placeholder="Nhập tên của bạn..." />
-
-        <label for="group" class="block text-base font-semibold">Nhóm chat:</label>
-        <input id="group" class="w-full px-4 py-3 text-lg border rounded-md" placeholder="Nhập tên nhóm..." />
-
-        <button onclick="join()" class="w-full bg-blue-500 text-white font-bold py-3 rounded hover:bg-blue-600 text-lg">Vào Chat</button>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 theme-transition">
+  <!-- Auth Modal -->
+  <div id="authModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 w-full max-w-md space-y-4 relative">
+      <h1 id="mainTitle" class="text-2xl font-bold text-center mb-2">Zashi Messaging</h1>
+      <!-- Auth Box -->
+      <div id="authBox" class="space-y-3">
+        <input id="username" class="w-full px-4 py-3 text-lg border rounded-md text-gray-900 dark:text-gray-100" placeholder="Username" />
+        <input id="email" class="w-full px-4 py-3 text-lg border rounded-md text-gray-900 dark:text-gray-100" placeholder="Gmail" />
+        <input id="password" type="password" class="w-full px-4 py-3 text-lg border rounded-md text-gray-900 dark:text-gray-100" placeholder="Password" />
+        <button id="registerBtn" onclick="register()" class="w-full bg-purple-500 text-white py-2 rounded">Đăng ký</button>
+        <button id="loginBtn" onclick="login()" class="w-full bg-green-500 text-white py-2 rounded">Đăng nhập</button>
+        <button id="forgotBtn" onclick="showResetPassword()" class="w-full bg-gray-400 text-white py-2 rounded">Quên mật khẩu?</button>
       </div>
-
-      <div id="chatbox" class="hidden flex flex-col h-96">
-        <div id="chat" class="flex-1 overflow-y-auto p-3 border rounded bg-gray-50 dark:bg-gray-700 space-y-2 text-base"></div>
-
-        <div class="flex items-center space-x-2 mt-3">
-          <input id="msg" class="flex-1 px-4 py-3 text-lg border rounded-md" placeholder="Nhập tin nhắn..." />
-          <button onclick="send()" class="bg-green-500 text-white px-4 py-3 rounded hover:bg-green-600 text-lg">Gửi</button>
+      <!-- Reset Password Box -->
+      <div id="resetBox" class="space-y-3 hidden">
+        <h2 id="resetTitle" class="text-xl font-bold text-center">Quên mật khẩu</h2>
+        <input id="resetUsername" class="w-full px-4 py-3 text-lg border rounded-md text-gray-900 dark:text-gray-100" placeholder="Username" />
+        <input id="resetPassword" type="password" class="w-full px-4 py-3 text-lg border rounded-md text-gray-900 dark:text-gray-100" placeholder="Mật khẩu mới" />
+        <button id="resetBtn" onclick="resetPassword()" class="w-full bg-blue-500 text-white py-2 rounded">Đặt lại mật khẩu</button>
+        <button id="backToLoginBtn" onclick="hideResetPassword()" class="w-full bg-gray-400 text-white py-2 rounded">Quay lại</button>
+      </div>
+    </div>
+  </div>
+  <!-- Join Group Modal -->
+  <div id="joinGroupModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 w-full max-w-md space-y-4 relative">
+      <h2 class="text-xl font-bold text-center mb-2">Vào nhóm chat</h2>
+      <input id="group" class="w-full px-4 py-3 text-lg border rounded-md text-gray-900 dark:text-gray-100" placeholder="Tên nhóm chat" />
+      <label for="avatarInput" class="block mb-2">Chọn ảnh đại diện (tùy chọn):</label>
+      <input id="avatarInput" type="file" accept="image/*" class="w-full mb-4" />
+      <button id="joinBtn" onclick="join()" class="w-full bg-blue-500 text-white py-2 rounded">Vào Chat</button>
+    </div>
+  </div>
+  <div id="chatBox" class="hidden">
+    <div class="max-w-6xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden p-0 flex flex-row h-[80vh] min-h-[600px]">
+      <!-- Sidebar: Danh sách cuộc trò chuyện -->
+      <div id="sidebar" class="w-1/5 min-w-[220px] bg-gray-50 dark:bg-gray-900 border-r dark:border-gray-700 flex flex-col">
+        <div class="p-4 border-b dark:border-gray-700 flex items-center justify-between">
+          <span class="font-bold text-lg">Chats</span>
+          <button id="newChatBtn" onclick="showJoinGroupModal()" class="bg-blue-500 text-white px-2 py-1 rounded text-sm">+</button>
         </div>
-
-        <div class="flex items-center space-x-2 mt-2">
-          <input type="file" id="fileInput" class="flex-1 text-base" />
-          <button onclick="sendFile()" class="bg-purple-500 text-white px-3 py-2 rounded hover:bg-purple-600 text-base">Gửi File</button>
+        <div id="chatList" class="flex-1 overflow-y-auto">
+          <!-- Danh sách nhóm/chat sẽ render ở đây -->
         </div>
+        <div class="p-4 border-t dark:border-gray-700 flex items-center justify-between">
+          <button id="settingsBtn" onclick="showSettings()" class="bg-gray-300 text-gray-800 px-3 py-1 rounded hover:bg-gray-400 w-full">⚙️ <span>Cài đặt</span></button>
+        </div>
+      </div>
+      <!-- Main Chat Window -->
+      <div id="mainChat" class="flex-1 flex flex-col bg-white dark:bg-gray-800">
+        <div class="flex items-center justify-between border-b dark:border-gray-700 px-6 py-3">
+          <div class="flex items-center space-x-3">
+            <img id="mainChatAvatar" src="" alt="avatar" class="w-10 h-10 rounded-full hidden">
+            <span id="mainChatTitle" class="font-bold text-lg">Chọn cuộc trò chuyện</span>
+          </div>
+          <button id="logoutBtn" onclick="logout()" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition">Đăng xuất</button>
+        </div>
+        <div id="chat" class="flex-1 overflow-y-auto p-6"></div>
+        <div class="border-t dark:border-gray-700 px-6 py-4 bg-gray-50 dark:bg-gray-900">
+          <div class="flex items-center space-x-2">
+            <input id="msg" class="flex-1 px-4 py-3 text-lg border rounded-md text-gray-900 dark:text-gray-100" placeholder="Nhập tin nhắn..." />
+            <input type="file" id="fileInput" class="hidden" />
+            <label id="chooseFileLabel" for="fileInput" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 cursor-pointer text-sm">Chọn tệp</label>
+            <button id="sendBtn" onclick="send()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 text-sm flex items-center space-x-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span>Gửi</span>
+            </button>
+          </div>
+          <div id="filePreview" class="mt-2"></div>
+        </div>
+      </div>
+      <!-- Info Panel: Thông tin chi tiết -->
+      <div id="infoPanel" class="w-1/4 min-w-[260px] bg-gray-50 dark:bg-gray-900 border-l dark:border-gray-700 flex flex-col">
+        <div class="p-6 border-b dark:border-gray-700">
+          <div class="flex flex-col items-center">
+            <img id="infoAvatar" src="" alt="avatar" class="w-20 h-20 rounded-full mb-2">
+            <div id="infoName" class="font-bold text-xl mb-1"></div>
+            <div id="infoEmail" class="text-sm text-gray-500 mb-2"></div>
+            <div id="infoStatus" class="text-xs text-green-500">Online</div>
+          </div>
+        </div>
+        <div id="infoDetails" class="flex-1 p-6 overflow-y-auto">
+          <!-- Thông tin chi tiết về nhóm hoặc user sẽ render ở đây -->
+        </div>
+      </div>
+    </div>
+    <!-- Thông tin cá nhân -->
+    <div class="flex items-center space-x-3 mt-4">
+      <img id="myAvatar" src="" alt="avatar" class="w-10 h-10 rounded-full">
+      <span id="myName" class="font-bold"></span>
+      <span id="myEmail" class="text-gray-500"></span>
+    </div>
+    <!-- Reply Box -->
+    <div id="replyBox" class="hidden mt-2 bg-blue-100 dark:bg-blue-900 p-2 rounded flex items-center space-x-2">
+      <span class="font-semibold">Đang trả lời:</span>
+      <span id="replyPreview"></span>
+      <button onclick="cancelReply()" class="ml-auto bg-gray-400 text-white px-2 py-1 rounded">Hủy</button>
+    </div>
+    <!-- Settings Box (ẩn mặc định) -->
+    <div id="settingsBox" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 w-full max-w-md space-y-4 relative">
+        <h2 id="settingsTitle" class="text-xl font-bold text-center mb-2">Cài đặt</h2>
+        <label for="displayNameInput">Tên hiển thị mới:</label>
+        <input id="displayNameInput" class="w-full px-4 py-2 border rounded mb-2" placeholder="Tên hiển thị mới">
+        <label for="emailInput">Gmail:</label>
+        <input id="emailInput" class="w-full px-4 py-2 border rounded mb-2" placeholder="Gmail">
+        <label for="newAvatarInput">Đổi avatar:</label>
+        <input id="newAvatarInput" type="file" accept="image/*" class="w-full mb-2">
+        <label for="themeSelect">Giao diện:</label>
+        <select id="themeSelect" class="w-full px-2 py-1 border rounded mb-2">
+          <option value="light">Sáng</option>
+          <option value="dark">Tối</option>
+        </select>
+        <label for="langSwitch">Ngôn ngữ:</label>
+        <select id="langSwitch" class="w-full px-2 py-1 border rounded mb-2" onchange="switchLanguage(this.value)">
+          <option value="vi">🇻🇳 Tiếng Việt</option>
+          <option value="en">🇬🇧 English</option>
+          <option value="ja">🇯🇵 日本語</option>
+          <option value="zh">🇨🇳 中文</option>
+          <option value="th">🇹🇭 ไทย</option>
+          <option value="tl">🇵🇭 Filipino</option>
+          <option value="es">🇲🇽 Español</option>
+          <option value="ru">🇷🇺 Русский</option>
+          <option value="ms">🇸🇬 Malay</option>
+          <option value="ko">🇰🇷 한국어</option>
+        </select>
+        <button id="saveSettingsBtn" onclick="saveSettings()" class="w-full bg-green-500 text-white py-2 rounded">Lưu thay đổi</button>
+        <button id="hideSettingsBtn" onclick="hideSettings()" class="w-full bg-gray-400 text-white py-2 rounded">Quay lại</button>
       </div>
     </div>
   </div>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    let socket;
-    let username = '';
-    let group = '';
+    let socket = null, username = '', password = '', avatarUrl = '', group = '', isConnected = false, replyTo = null, privateChatUser = null;
 
-    function getAvatarUrl(name) {
-      return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&size=64&bold=true`;
+    document.getElementById('fileInput').addEventListener('change', function() {
+      const file = this.files[0];
+      const preview = document.getElementById('filePreview');
+      preview.innerHTML = '';
+
+      if (!file) return;
+
+      const fileName = file.name;
+      const fileSize = (file.size / 1024).toFixed(2) + ' KB';
+
+      if (file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.className = 'w-32 h-32 object-cover rounded';
+        preview.appendChild(img);
+      }
+
+      const info = document.createElement('p');
+      info.className = 'text-sm text-gray-500 mt-1';
+      info.textContent = `${fileName} (${fileSize})`;
+      preview.appendChild(info);
+    });
+
+    async function register() {
+      const inputUsername = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const inputPassword = document.getElementById('password').value.trim();
+      if (!inputUsername || !inputPassword || !email) {
+        showToast('Nhập đủ username, password và email!', 'error');
+        return;
+      }
+      const res = await fetch('http://localhost:3001/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: inputUsername, password: inputPassword, email })
+      }).then(r => r.json());
+      showToast(res.success ? 'Đăng ký thành công' : res.message, res.success ? 'success' : 'error');
+      if (res.success) {
+        document.getElementById('username').value = '';
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+        document.getElementById('authModal').classList.add('hidden');
+        document.getElementById('joinGroupModal').classList.remove('hidden');
+      }
+    }
+
+    async function login() {
+      const inputUsername = document.getElementById('username').value.trim();
+      const inputPassword = document.getElementById('password').value.trim();
+      if (!inputUsername || !inputPassword) {
+        showToast('Nhập đủ username và password!', 'error');
+        return;
+      }
+      const res = await fetch('http://localhost:3001/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: inputUsername, password: inputPassword })
+      }).then(r => r.json());
+      if (res.success) {
+        username = inputUsername;
+        password = inputPassword;
+        window.userEmail = res.email || '';
+        document.getElementById('authModal').classList.add('hidden');
+        document.getElementById('joinGroupModal').classList.remove('hidden');
+        document.getElementById('myEmail').textContent = window.userEmail;
+      } else showToast(res.message, 'error');
+    }
+
+    function showJoinGroupModal() {
+      document.getElementById('group').value = '';
+      document.getElementById('avatarInput').value = null;
+      document.getElementById('joinGroupModal').classList.remove('hidden');
     }
 
     function join() {
-      username = document.getElementById('username').value.trim();
-      group = document.getElementById('group').value.trim();
-
-      if (!username || !group) {
-        alert('Nhập tên người dùng và nhóm!');
+      const newGroupName = document.getElementById('group').value.trim();
+      if (!newGroupName) {
+        showToast(LANGS[currentLang].joinAlert, 'error');
         return;
       }
+      
+      const avatarFile = document.getElementById('avatarInput').files[0];
 
-      socket = io('http://localhost:3001');
-      document.getElementById('loginBox').classList.add('hidden');
-      document.getElementById('chatbox').classList.remove('hidden');
+      const joinLogic = () => {
+        group = newGroupName;
 
-      socket.emit('joinGroup', group);
+        if (!socket) {
+          socket = io('http://localhost:3001');
+          isConnected = true;
 
-      socket.on('loadMessages', (msgs) => {
-        document.getElementById('chat').innerHTML = ''; // Reset chat
-        msgs.forEach(addMessage);
-      });
+          socket.on('avatar', (url) => { avatarUrl = url; });
+          socket.on('loadMessages', (msgs) => {
+            document.getElementById('chat').innerHTML = '';
+            msgs.forEach(addMessage);
+          });
+          socket.on('newMessage', (msgObj) => { addMessage(msgObj); });
+          socket.on('newFile', (fileObj) => {
+            addMessage({
+              user: fileObj.user,
+              text: `<a href="${fileObj.url}" target="_blank">${fileObj.filename}</a>`,
+              avatar: fileObj.avatar,
+              time: fileObj.time
+            });
+          });
+          socket.on('onlineUsers', (users) => { updateOnlineUsers(users); });
+          socket.on('privateMessage', (msgObj) => {
+            addMessage(msgObj);
+            showBrowserNotification(msgObj);
+          });
+        }
 
-      socket.on('newMessage', (msgObj) => {
-        addMessage(msgObj);
-      });
+        socket.emit('joinGroup', { groupName: group, username });
 
-      socket.on('newFile', ({ user, filename, url }) => {
-        const chat = document.getElementById('chat');
-        const div = document.createElement('div');
-        div.className = 'flex items-center space-x-2 p-2 bg-white dark:bg-gray-700 rounded';
-        div.innerHTML = `
-          <img src="${getAvatarUrl(user)}" alt="avatar" class="w-8 h-8 rounded-full">
-          <div><b class="text-blue-500">${user}:</b> <a href="${url}" class="text-blue-500 underline" target="_blank">${filename}</a></div>
-        `;
-        chat.appendChild(div);
-        chat.scrollTop = chat.scrollHeight;
-      });
+        document.getElementById('chat').innerHTML = '';
+        document.getElementById('mainChatTitle').textContent = group;
+        document.getElementById('myAvatar').src = avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random&size=64&bold=true`;
+        document.getElementById('myName').textContent = username;
+        document.getElementById('myEmail').textContent = window.userEmail || '';
+        
+        document.getElementById('joinGroupModal').classList.add('hidden');
+        document.getElementById('chatBox').classList.remove('hidden');
+      };
+
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        formData.append('username', username);
+        fetch('http://localhost:3001/upload-avatar', { method: 'POST', body: formData })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              avatarUrl = data.url;
+              joinLogic();
+            } else {
+              showToast(LANGS[currentLang].avatarFailAlert, 'error');
+            }
+          });
+      } else {
+        joinLogic();
+      }
     }
 
-    function addMessage({ user, text }) {
+    function addMessage({ user, text, time, avatar, reply }) {
       const chat = document.getElementById('chat');
       const div = document.createElement('div');
-      div.className = 'flex items-center space-x-2 p-2 bg-white dark:bg-gray-700 rounded';
-      div.innerHTML = `
-        <img src="${getAvatarUrl(user)}" alt="avatar" class="w-8 h-8 rounded-full">
-        <div><b class="text-blue-500">${user}:</b> ${text}</div>
-      `;
+      div.className = 'flex items-start space-x-2 p-2 bg-white dark:bg-gray-700 rounded group hover:bg-blue-50 dark:hover:bg-blue-800 cursor-pointer msg-animate';
+      const avatarSrc = avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user)}&background=random&size=64&bold=true`;
+      let replyHtml = '';
+      if (reply) {
+        replyHtml = `<div class='text-xs text-blue-600 dark:text-blue-300 border-l-4 border-blue-400 pl-2 mb-1'>${reply.user}: ${reply.text}</div>`;
+      }
+      let msgHtml = `<img src="${avatarSrc}" alt="avatar" class="w-8 h-8 rounded-full"><div>${replyHtml}<b class="text-blue-500">${user}:</b> ${text} <br><small class="text-gray-400">${time || ''}</small><div class='link-preview'></div></div>`;
+      div.innerHTML = msgHtml;
+      div.onclick = function() { startReply(user, text); };
       chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;
+      // Link preview
+      const url = extractUrl(text);
+      if (url) {
+        fetch('http://localhost:3001/link-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            const preview = document.createElement('div');
+            preview.className = 'mt-2 p-2 border rounded bg-gray-100 dark:bg-gray-800';
+            preview.innerHTML =
+              (data.image ? `<img src='${data.image}' class='w-24 h-24 object-cover rounded mb-2'>` : '') +
+              `<div class='font-bold'>${data.title || url}</div>` +
+              (data.description ? `<div class='text-sm text-gray-600 dark:text-gray-300'>${data.description}</div>` : '') +
+              `<a href='${url}' target='_blank' class='text-blue-500 underline text-xs'>${url}</a>`;
+            div.querySelector('.link-preview').appendChild(preview);
+          }
+        });
+      }
+      // Remove animation class after animation ends for re-adding on next message
+      div.addEventListener('animationend', () => div.classList.remove('msg-animate'));
+    }
+
+    function extractUrl(text) {
+      if (!text) return null;
+      const match = text.match(/https?:\/\/[\w\-\.\/?#=&%]+/);
+      return match ? match[0] : null;
+    }
+
+    function startReply(user, text) {
+      replyTo = { user, text };
+      document.getElementById('replyBox').classList.remove('hidden');
+      document.getElementById('replyPreview').textContent = `${user}: ${text}`;
+    }
+
+    function cancelReply() {
+      replyTo = null;
+      document.getElementById('replyBox').classList.add('hidden');
+      document.getElementById('replyPreview').textContent = '';
     }
 
     function send() {
       const text = document.getElementById('msg').value.trim();
-      if (!text) {
-        alert('Nhập tin nhắn!');
-        return;
-      }
-      socket.emit('sendMessage', { user: username, text, group });
-      document.getElementById('msg').value = '';
-    }
-
-    function sendFile() {
       const fileInput = document.getElementById('fileInput');
       const file = fileInput.files[0];
-      if (!file) {
-        alert('Chọn file!');
+
+      if (!text && !file) {
+        showToast('Nhập tin nhắn hoặc chọn file!', 'error');
         return;
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('user', username);
-      formData.append('group', group);
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('user', username);
+        formData.append('group', privateChatUser ? null : group);
+        formData.append('avatar', avatarUrl);
+        formData.append('text', text);
+        if (replyTo) formData.append('reply', JSON.stringify(replyTo));
+        if (privateChatUser) formData.append('to', privateChatUser);
 
-      fetch('http://localhost:3001/upload', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        console.log('File uploaded:', data);
-      })
-      .catch(err => console.error('Upload error:', err));
+        fetch('http://localhost:3001/upload', { method: 'POST', body: formData })
+          .then(response => response.json())
+          .then(data => {
+            if (!data.success) {
+              showToast(data.message || 'Upload thất bại!', 'error');
+            } else {
+              showToast('Gửi hình ảnh thành công!', 'success');
+            }
+          })
+          .catch(err => showToast('Lỗi upload file!', 'error'));
 
-      fileInput.value = '';
+        fileInput.value = '';
+        document.getElementById('msg').value = '';
+        document.getElementById('filePreview').innerHTML = '';
+        cancelReply();
+      } else {
+        if (privateChatUser) {
+          socket.emit('privateMessage', { from: username, to: privateChatUser, text, avatar: avatarUrl, reply: replyTo });
+        } else {
+          socket.emit('sendMessage', { user: username, text, group, avatar: avatarUrl, reply: replyTo });
+        }
+        document.getElementById('msg').value = '';
+        cancelReply();
+      }
     }
+
+    function showResetPassword() {
+      document.getElementById('authBox').classList.add('hidden');
+      document.getElementById('resetBox').classList.remove('hidden');
+    }
+
+    function hideResetPassword() {
+      document.getElementById('resetBox').classList.add('hidden');
+      document.getElementById('authBox').classList.remove('hidden');
+    }
+
+    async function resetPassword() {
+      const username = document.getElementById('resetUsername').value.trim();
+      const password = document.getElementById('resetPassword').value.trim();
+      if (!username || !password) { showToast('Nhập đủ thông tin!', 'error'); return; }
+      const res = await fetch('http://localhost:3001/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      }).then(r => r.json());
+      showToast(res.success ? 'Đặt lại mật khẩu thành công!' : res.message, res.success ? 'success' : 'error');
+      if (res.success) {
+        document.getElementById('resetUsername').value = '';
+        document.getElementById('resetPassword').value = '';
+        hideResetPassword();
+      }
+    }
+
+    // Settings logic
+    function showSettings() {
+      document.getElementById('settingsBox').classList.remove('hidden');
+      document.getElementById('displayNameInput').value = username;
+      document.getElementById('emailInput').value = window.userEmail || '';
+      document.getElementById('themeSelect').value = document.body.classList.contains('dark') ? 'dark' : 'light';
+    }
+    function hideSettings() {
+      document.getElementById('settingsBox').classList.add('hidden');
+    }
+    async function saveSettings() {
+      // Đổi tên hiển thị (chỉ đổi local)
+      const newName = document.getElementById('displayNameInput').value.trim();
+      if (newName) username = newName;
+      // Đổi Gmail (chỉ đổi local)
+      const newEmail = document.getElementById('emailInput').value.trim();
+      if (newEmail) {
+        window.userEmail = newEmail;
+        document.getElementById('myEmail').textContent = newEmail;
+      }
+      // Đổi avatar
+      const avatarFile = document.getElementById('newAvatarInput').files[0];
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        formData.append('username', username);
+        await fetch('http://localhost:3001/upload-avatar', { method: 'POST', body: formData })
+          .then(res => res.json())
+          .then(data => { if (data.success) avatarUrl = data.url; });
+      }
+      // Đổi theme
+      const theme = document.getElementById('themeSelect').value;
+      if (theme === 'dark') {
+        document.body.classList.add('dark');
+      } else {
+        document.body.classList.remove('dark');
+      }
+      hideSettings();
+      showToast(LANGS[currentLang].saveSuccess, 'success');
+    }
+
+    function updateOnlineUsers(users) {
+      const ul = document.getElementById('onlineUsers');
+      ul.innerHTML = '';
+      users.forEach(u => {
+        const li = document.createElement('li');
+        li.className = 'flex items-center space-x-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800 p-2 rounded';
+        const avatar = u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}&background=random&size=32&bold=true`;
+        li.innerHTML = `<img src="${avatar}" class="w-8 h-8 rounded-full"><span>${u.username}</span>`;
+        li.onclick = function() { if (u.username !== username) startPrivateChat(u.username); };
+        ul.appendChild(li);
+      });
+    }
+
+    function startPrivateChat(user) {
+      privateChatUser = user;
+      document.getElementById('backToGroupBtn').classList.remove('hidden');
+      document.getElementById('chat').innerHTML = '';
+      document.getElementById('group').disabled = true;
+      document.getElementById('msg').placeholder = `Nhắn riêng tới ${user}...`;
+      showToast(`Đang nhắn riêng với ${user}`);
+    }
+
+    function backToGroup() {
+      privateChatUser = null;
+      document.getElementById('backToGroupBtn').classList.add('hidden');
+      document.getElementById('chat').innerHTML = '';
+      document.getElementById('group').disabled = false;
+      document.getElementById('msg').placeholder = 'Nhập tin nhắn...';
+      showToast('Đã quay lại chat nhóm');
+    }
+
+    // Toast notification
+    function showToast(msg, type = 'success') {
+      let toast = document.getElementById('toastBox');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toastBox';
+        toast.className = 'fixed top-4 right-4 z-50 px-6 py-3 rounded shadow-lg text-white text-base font-semibold transition-all duration-300';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = msg;
+      toast.style.backgroundColor = type === 'success' ? '#22c55e' : '#ef4444';
+      toast.style.opacity = 1;
+      setTimeout(() => { toast.style.opacity = 0; }, 2500);
+    }
+
+    function logout() {
+      location.reload();
+      document.getElementById('authModal').classList.remove('hidden');
+    }
+
+    async function changePassword() {
+      const oldPass = document.getElementById('oldPasswordInput').value.trim();
+      const newPass = document.getElementById('newPasswordInput').value.trim();
+      const confirmPass = document.getElementById('confirmPasswordInput').value.trim();
+      if (!oldPass || !newPass || !confirmPass) return showToast('Nhập đủ thông tin!', 'error');
+      if (newPass !== confirmPass) return showToast('Mật khẩu mới không khớp!', 'error');
+      const res = await fetch('http://localhost:3001/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, oldPassword: oldPass, newPassword: newPass })
+      }).then(r => r.json());
+      showToast(res.success ? 'Đổi mật khẩu thành công!' : res.message, res.success ? 'success' : 'error');
+      if (res.success) {
+        document.getElementById('oldPasswordInput').value = '';
+        document.getElementById('newPasswordInput').value = '';
+        document.getElementById('confirmPasswordInput').value = '';
+      }
+    }
+
+    // Notification API
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission !== 'granted') {
+        Notification.requestPermission();
+      }
+    }
+    function showBrowserNotification(msgObj) {
+      if (document.hasFocus()) return; // Chỉ thông báo khi không focus
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const title = `${msgObj.user} gửi tin nhắn mới`;
+        const body = msgObj.text ? msgObj.text : '[Tệp tin]';
+        new Notification(title, { body });
+      }
+    }
+    // Gọi xin quyền khi vào chat
+    window.addEventListener('focus', requestNotificationPermission);
+    // Thông báo khi có tin nhắn nhóm
+    socket && socket.on && socket.on('newMessage', (msgObj) => {
+      showBrowserNotification(msgObj);
+    });
+
+    // Đa ngôn ngữ
+    const LANGS = {
+      vi: {
+        appName: 'Zashi Messaging',
+        login: 'Đăng nhập', register: 'Đăng ký', forgot: 'Quên mật khẩu?', group: 'Nhóm chat:',
+        usernamePlaceholder: 'Tên đăng nhập', emailPlaceholder: 'Gmail', passwordPlaceholder: 'Mật khẩu',
+        avatar: 'Chọn ảnh đại diện:', join: 'Vào Chat', send: 'Gửi', chooseFile: 'Chọn tệp',
+        placeholderMsg: 'Nhập tin nhắn...',
+        online: 'Đang online', settings: 'Cài đặt', logout: 'Đăng xuất',
+        displayName: 'Tên hiển thị mới:', email: 'Gmail:', changeAvatar: 'Đổi avatar:', theme: 'Giao diện:',
+        light: 'Sáng', dark: 'Tối', save: 'Lưu thay đổi', back: 'Quay lại', changePass: 'Đổi mật khẩu:',
+        oldPass: 'Mật khẩu cũ', newPass: 'Mật khẩu mới', confirmPass: 'Xác nhận mật khẩu mới',
+        reply: 'Đang trả lời:', cancel: 'Hủy', sendPrivate: 'Nhắn riêng tới', backToGroup: 'Quay lại nhóm',
+        success: 'Thành công!', error: 'Lỗi!',
+        themeSwitch: 'Chuyển giao diện',
+        resetTitle: 'Quên mật khẩu', resetBtn: 'Đặt lại mật khẩu', backToLogin: 'Quay lại đăng nhập', newPasswordPlaceholder: 'Mật khẩu mới',
+        settingsTitle: 'Cài đặt', displayNamePlaceholder: 'Tên hiển thị mới',
+        joinAlert: 'Vui lòng nhập tên nhóm!', avatarFailAlert: 'Tải lên avatar thất bại!', saveSuccess: 'Đã lưu thay đổi!',
+      },
+      en: {
+        appName: 'Zashi Messaging',
+        login: 'Login', register: 'Register', forgot: 'Forgot password?', group: 'Group chat:',
+        usernamePlaceholder: 'Username', emailPlaceholder: 'Gmail', passwordPlaceholder: 'Password',
+        avatar: 'Choose avatar:', join: 'Join Chat', send: 'Send', chooseFile: 'Choose file',
+        placeholderMsg: 'Type a message...',
+        online: 'Online', settings: 'Settings', logout: 'Logout',
+        displayName: 'Display name:', email: 'Gmail:', changeAvatar: 'Change avatar:', theme: 'Theme:',
+        light: 'Light', dark: 'Dark', save: 'Save changes', back: 'Back', changePass: 'Change password:',
+        oldPass: 'Old password', newPass: 'New password', confirmPass: 'Confirm new password',
+        reply: 'Replying:', cancel: 'Cancel', sendPrivate: 'Private to', backToGroup: 'Back to group',
+        success: 'Success!', error: 'Error!',
+        themeSwitch: 'Switch theme',
+        resetTitle: 'Forgot Password', resetBtn: 'Reset Password', backToLogin: 'Back to Login', newPasswordPlaceholder: 'New Password',
+        settingsTitle: 'Settings', displayNamePlaceholder: 'New display name',
+        joinAlert: 'Please enter a group name!', avatarFailAlert: 'Avatar upload failed!', saveSuccess: 'Changes saved!',
+      },
+      ja: {
+        appName: 'Zashiメッセージング',
+        login: 'ログイン', register: '登録', forgot: 'パスワードをお忘れですか?', group: 'グループチャット:',
+        usernamePlaceholder: 'ユーザー名', emailPlaceholder: 'メール', passwordPlaceholder: 'パスワード',
+        avatar: 'アバターを選択:', join: 'チャットに参加', send: '送信', chooseFile: 'ファイルを選択',
+        placeholderMsg: 'メッセージを入力...',
+        online: 'オンライン', settings: '設定', logout: 'ログアウト',
+        displayName: '表示名:', email: 'メール:', changeAvatar: 'アバターを変更:', theme: 'テーマ:',
+        light: 'ライト', dark: 'ダーク', save: '変更を保存', back: '戻る', changePass: 'パスワードを変更:',
+        oldPass: '現在のパスワード', newPass: '新しいパスワード', confirmPass: '新しいパスワードを確認',
+        reply: '返信中:', cancel: 'キャンセル', sendPrivate: 'プライベート:', backToGroup: 'グループに戻る',
+        success: '成功!', error: 'エラー!',
+        themeSwitch: 'テーマ切替',
+        resetTitle: 'パスワードを忘れました', resetBtn: 'パスワードをリセット', backToLogin: 'ログインに戻る', newPasswordPlaceholder: '新しいパスワード',
+        settingsTitle: '設定', displayNamePlaceholder: '新しい表示名',
+        joinAlert: 'グループ名を入力してください！', avatarFailAlert: 'アバターのアップロードに失敗しました！', saveSuccess: '変更が保存されました！',
+      },
+      zh: {
+        appName: 'Zashi消息',
+        login: '登录', register: '注册', forgot: '忘记密码？', group: '群聊:',
+        usernamePlaceholder: '用户名', emailPlaceholder: '邮箱', passwordPlaceholder: '密码',
+        avatar: '选择头像:', join: '加入聊天', send: '发送', chooseFile: '选择文件',
+        placeholderMsg: '输入消息...',
+        online: '在线', settings: '设置', logout: '登出',
+        displayName: '显示名称:', email: '邮箱:', changeAvatar: '更换头像:', theme: '主题:',
+        light: '浅色', dark: '深色', save: '保存更改', back: '返回', changePass: '更改密码:',
+        oldPass: '旧密码', newPass: '新密码', confirmPass: '确认新密码',
+        reply: '回复:', cancel: '取消', sendPrivate: '私信给', backToGroup: '返回群组',
+        success: '成功！', error: '错误！',
+        themeSwitch: '切换主题',
+        resetTitle: '忘记密码', resetBtn: '重设密码', backToLogin: '返回登录', newPasswordPlaceholder: '新密码',
+        settingsTitle: '设置', displayNamePlaceholder: '新的显示名称',
+        joinAlert: '请输入群组名称！', avatarFailAlert: '头像上传失败！', saveSuccess: '更改已保存！',
+      },
+      th: {
+        appName: 'Zashi เมสเซจจิ้ง',
+        login: 'เข้าสู่ระบบ', register: 'ลงทะเบียน', forgot: 'ลืมรหัสผ่าน?', group: 'แชทกลุ่ม:',
+        usernamePlaceholder: 'ชื่อผู้ใช้', emailPlaceholder: 'อีเมล', passwordPlaceholder: 'รหัสผ่าน',
+        avatar: 'เลือกอวตาร:', join: 'เข้าร่วมแชท', send: 'ส่ง', chooseFile: 'เลือกไฟล์',
+        placeholderMsg: 'พิมพ์ข้อความ...',
+        online: 'ออนไลน์', settings: 'การตั้งค่า', logout: 'ออกจากระบบ',
+        displayName: 'ชื่อที่แสดง:', email: 'อีเมล:', changeAvatar: 'เปลี่ยนอวตาร:', theme: 'ธีม:',
+        light: 'สว่าง', dark: 'มืด', save: 'บันทึกการเปลี่ยนแปลง', back: 'กลับ', changePass: 'เปลี่ยนรหัสผ่าน:',
+        oldPass: 'รหัสผ่านเก่า', newPass: 'รหัสผ่านใหม่', confirmPass: 'ยืนยันรหัสผ่านใหม่',
+        reply: 'กำลังตอบกลับ:', cancel: 'ยกเลิก', sendPrivate: 'ส่วนตัวถึง', backToGroup: 'กลับไปที่กลุ่ม',
+        success: 'สำเร็จ!', error: 'ข้อผิดพลาด!',
+        themeSwitch: 'สลับธีม',
+        resetTitle: 'ลืมรหัสผ่าน', resetBtn: 'รีเซ็ตรหัสผ่าน', backToLogin: 'กลับไปที่หน้าเข้าสู่ระบบ', newPasswordPlaceholder: 'รหัสผ่านใหม่',
+        settingsTitle: 'การตั้งค่า', displayNamePlaceholder: 'ชื่อที่แสดงใหม่',
+        joinAlert: 'กรุณาใส่ชื่อกลุ่ม!', avatarFailAlert: 'การอัปโหลดอวตารล้มเหลว!', saveSuccess: 'บันทึกการเปลี่ยนแปลงแล้ว!',
+      },
+      tl: {
+        appName: 'Zashi Messaging',
+        login: 'Mag-login', register: 'Magrehistro', forgot: 'Nakalimutan ang password?', group: 'Group chat:',
+        usernamePlaceholder: 'Username', emailPlaceholder: 'Email', passwordPlaceholder: 'Password',
+        avatar: 'Pumili ng avatar:', join: 'Sumali sa Chat', send: 'Ipadala', chooseFile: 'Pumili ng file',
+        placeholderMsg: 'Mag-type ng mensahe...',
+        online: 'Online', settings: 'Mga Setting', logout: 'Mag-logout',
+        displayName: 'Display name:', email: 'Email:', changeAvatar: 'Palitan ang avatar:', theme: 'Tema:',
+        light: 'Maliwanag', dark: 'Madilim', save: 'I-save ang mga pagbabago', back: 'Bumalik', changePass: 'Palitan ang password:',
+        oldPass: 'Lumang password', newPass: 'Bagong password', confirmPass: 'Kumpirmahin ang bagong password',
+        reply: 'Sumasagot sa:', cancel: 'Kanselahin', sendPrivate: 'Pribado para kay', backToGroup: 'Bumalik sa grupo',
+        success: 'Tagumpay!', error: 'Error!',
+        themeSwitch: 'Palitan ang tema',
+        resetTitle: 'Nakalimutan ang Password', resetBtn: 'I-reset ang Password', backToLogin: 'Bumalik sa Pag-login', newPasswordPlaceholder: 'Bagong Password',
+        settingsTitle: 'Mga Setting', displayNamePlaceholder: 'Bagong display name',
+        joinAlert: 'Pakilagay ang pangalan ng grupo!', avatarFailAlert: 'Nabigo ang pag-upload ng avatar!', saveSuccess: 'Nai-save ang mga pagbabago!',
+      },
+      es: {
+        appName: 'Mensajería Zashi',
+        login: 'Iniciar sesión', register: 'Registrarse', forgot: '¿Olvidaste tu contraseña?', group: 'Chat grupal:',
+        usernamePlaceholder: 'Usuario', emailPlaceholder: 'Correo', passwordPlaceholder: 'Contraseña',
+        avatar: 'Elegir avatar:', join: 'Unirse al Chat', send: 'Enviar', chooseFile: 'Elegir archivo',
+        placeholderMsg: 'Escribe un mensaje...',
+        online: 'En línea', settings: 'Ajustes', logout: 'Cerrar sesión',
+        displayName: 'Nombre de usuario:', email: 'Correo:', changeAvatar: 'Cambiar avatar:', theme: 'Tema:',
+        light: 'Claro', dark: 'Oscuro', save: 'Guardar cambios', back: 'Volver', changePass: 'Cambiar contraseña:',
+        oldPass: 'Contraseña anterior', newPass: 'Contraseña nueva', confirmPass: 'Confirmar contraseña nueva',
+        reply: 'Respondiendo a:', cancel: 'Cancelar', sendPrivate: 'Privado para', backToGroup: 'Volver al grupo',
+        success: '¡Éxito!', error: '¡Error!',
+        themeSwitch: 'Cambiar tema',
+        resetTitle: '¿Olvidaste tu contraseña?', resetBtn: 'Restablecer contraseña', backToLogin: 'Volver a Iniciar sesión', newPasswordPlaceholder: 'Nueva contraseña',
+        settingsTitle: 'Ajustes', displayNamePlaceholder: 'Nuevo nombre de usuario',
+        joinAlert: '¡Por favor, introduce un nombre de grupo!', avatarFailAlert: '¡Falló la subida del avatar!', saveSuccess: '¡Cambios guardados!',
+      },
+      ru: {
+        appName: 'Zashi Мессенджер',
+        login: 'Войти', register: 'Зарегистрироваться', forgot: 'Забыли пароль?', group: 'Групповой чат:',
+        usernamePlaceholder: 'Имя пользователя', emailPlaceholder: 'Эл. почта', passwordPlaceholder: 'Пароль',
+        avatar: 'Выберите аватар:', join: 'Присоединиться', send: 'Отправить', chooseFile: 'Выбрать файл',
+        placeholderMsg: 'Введите сообщение...',
+        online: 'В сети', settings: 'Настройки', logout: 'Выйти',
+        displayName: 'Отображаемое имя:', email: 'Эл. почта:', changeAvatar: 'Сменить аватар:', theme: 'Тема:',
+        light: 'Светлая', dark: 'Темная', save: 'Сохранить изменения', back: 'Назад', changePass: 'Сменить пароль:',
+        oldPass: 'Старый пароль', newPass: 'Новый пароль', confirmPass: 'Подтвердите новый пароль',
+        reply: 'Ответ:', cancel: 'Отмена', sendPrivate: 'Личное сообщение для', backToGroup: 'Вернуться в группу',
+        success: 'Успех!', error: 'Ошибка!',
+        themeSwitch: 'Сменить тему',
+        resetTitle: 'Забыли пароль', resetBtn: 'Сбросить пароль', backToLogin: 'Вернуться ко входу', newPasswordPlaceholder: 'Новый пароль',
+        settingsTitle: 'Настройки', displayNamePlaceholder: 'Новое отображаемое имя',
+        joinAlert: 'Пожалуйста, введите название группы!', avatarFailAlert: 'Ошибка загрузки аватара!', saveSuccess: 'Изменения сохранены!',
+      },
+      ms: {
+        appName: 'Pemesejan Zashi',
+        login: 'Log masuk', register: 'Daftar', forgot: 'Lupa kata laluan?', group: 'Sembang kumpulan:',
+        usernamePlaceholder: 'Nama pengguna', emailPlaceholder: 'E-mel', passwordPlaceholder: 'Kata laluan',
+        avatar: 'Pilih avatar:', join: 'Sertai Sembang', send: 'Hantar', chooseFile: 'Pilih fail',
+        placeholderMsg: 'Taip mesej...',
+        online: 'Dalam talian', settings: 'Tetapan', logout: 'Log keluar',
+        displayName: 'Nama paparan:', email: 'E-mel:', changeAvatar: 'Tukar avatar:', theme: 'Tema:',
+        light: 'Cerah', dark: 'Gelap', save: 'Simpan perubahan', back: 'Kembali', changePass: 'Tukar kata laluan:',
+        oldPass: 'Kata laluan lama', newPass: 'Kata laluan baharu', confirmPass: 'Sahkan kata laluan baharu',
+        reply: 'Membalas kepada:', cancel: 'Batal', sendPrivate: 'Peribadi kepada', backToGroup: 'Kembali ke kumpulan',
+        success: 'Berjaya!', error: 'Ralat!',
+        themeSwitch: 'Tukar tema',
+        resetTitle: 'Lupa Kata Laluan', resetBtn: 'Set semula Kata Laluan', backToLogin: 'Kembali ke Log Masuk', newPasswordPlaceholder: 'Kata laluan baharu',
+        settingsTitle: 'Tetapan', displayNamePlaceholder: 'Nama paparan baharu',
+        joinAlert: 'Sila masukkan nama kumpulan!', avatarFailAlert: 'Muat naik avatar gagal!', saveSuccess: 'Perubahan disimpan!',
+      },
+      ko: {
+        appName: 'Zashi 메시징',
+        login: '로그인', register: '회원가입', forgot: '비밀번호를 잊으셨나요?', group: '그룹 채팅:',
+        usernamePlaceholder: '사용자 이름', emailPlaceholder: '이메일', passwordPlaceholder: '비밀번호',
+        avatar: '아바타 선택:', join: '채팅 참여', send: '전송', chooseFile: '파일 선택',
+        placeholderMsg: '메시지를 입력하세요...',
+        online: '온라인', settings: '설정', logout: '로그아웃',
+        displayName: '표시 이름:', email: '이메일:', changeAvatar: '아바타 변경:', theme: '테마:',
+        light: '라이트', dark: '다크', save: '변경사항 저장', back: '뒤로', changePass: '비밀번호 변경:',
+        oldPass: '기존 비밀번호', newPass: '새 비밀번호', confirmPass: '새 비밀번호 확인',
+        reply: '답장 중:', cancel: '취소', sendPrivate: '님에게 개인 메시지', backToGroup: '그룹으로 돌아가기',
+        success: '성공!', error: '오류!',
+        themeSwitch: '테마 전환',
+        resetTitle: '비밀번호를 잊으셨나요', resetBtn: '비밀번호 재설정', backToLogin: '로그인으로 돌아가기', newPasswordPlaceholder: '새 비밀번호',
+        settingsTitle: '설정', displayNamePlaceholder: '새 표시 이름',
+        joinAlert: '그룹 이름을 입력하세요!', avatarFailAlert: '아바타 업로드 실패!', saveSuccess: '변경 사항이 저장되었습니다!',
+      }
+    };
+    let currentLang = localStorage.getItem('lang') || 'vi';
+    function switchLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('lang', lang);
+      renderLang();
+    }
+    function renderLang() {
+      const t = LANGS[currentLang];
+      const el = (id) => document.getElementById(id);
+      document.getElementById('langSwitch').value = currentLang;
+
+      // App title
+      if(el('mainTitle')) el('mainTitle').innerText = t.appName;
+
+      // Auth
+      if (el('loginBtn')) el('loginBtn').innerText = t.login;
+      if (el('registerBtn')) el('registerBtn').innerText = t.register;
+      if (el('forgotBtn')) el('forgotBtn').innerText = t.forgot;
+      if (el('username')) el('username').setAttribute('placeholder', t.usernamePlaceholder);
+      if (el('email')) el('email').setAttribute('placeholder', t.emailPlaceholder);
+      if (el('password')) el('password').setAttribute('placeholder', t.passwordPlaceholder);
+      
+      // Reset Password
+      if (el('resetTitle')) el('resetTitle').innerText = t.resetTitle;
+      if (el('resetUsername')) el('resetUsername').setAttribute('placeholder', t.usernamePlaceholder);
+      if (el('resetPassword')) el('resetPassword').setAttribute('placeholder', t.newPasswordPlaceholder);
+      if (el('resetBtn')) el('resetBtn').innerText = t.resetBtn;
+      if (el('backToLoginBtn')) el('backToLoginBtn').innerText = t.backToLogin;
+
+      // Chat
+      const groupLabel = document.querySelector('label[for="group"]');
+      if (groupLabel) groupLabel.innerText = t.group;
+      if (el('group')) el('group').setAttribute('placeholder', t.group);
+      const avatarLabel = document.querySelector('label[for="avatarInput"]');
+      if (avatarLabel) avatarLabel.innerText = t.avatar;
+      if (el('joinBtn')) el('joinBtn').innerText = t.join;
+      if (el('msg')) el('msg').setAttribute('placeholder', t.placeholderMsg);
+      if (el('chooseFileLabel')) el('chooseFileLabel').innerText = t.chooseFile;
+      const sendBtn = el('sendBtn');
+      if (sendBtn && sendBtn.querySelector('span')) sendBtn.querySelector('span').innerText = t.send;
+      const onlineLabel = document.querySelector('h3.font-semibold');
+      if (onlineLabel) onlineLabel.innerText = t.online;
+      if (el('settingsBtn')) el('settingsBtn').innerText = t.settings;
+      if (el('logoutBtn')) el('logoutBtn').innerText = t.logout;
+
+      // Settings
+      if (el('settingsTitle')) el('settingsTitle').innerText = t.settingsTitle;
+      const displayNameLabel = document.querySelector('label[for="displayNameInput"]');
+      if (displayNameLabel) displayNameLabel.innerText = t.displayName;
+      if (el('displayNameInput')) el('displayNameInput').setAttribute('placeholder', t.displayNamePlaceholder);
+      const emailLabel = document.querySelector('label[for="emailInput"]');
+      if (emailLabel) emailLabel.innerText = t.email;
+      if (el('emailInput')) el('emailInput').setAttribute('placeholder', t.emailPlaceholder);
+      const avatarChangeLabel = document.querySelector('label[for="newAvatarInput"]');
+      if (avatarChangeLabel) avatarChangeLabel.innerText = t.changeAvatar;
+      const themeLabel = document.querySelector('label[for="themeSelect"]');
+      if (themeLabel) themeLabel.innerText = t.theme;
+      const lightOpt = document.querySelector('option[value="light"]');
+      if (lightOpt) lightOpt.innerText = t.light;
+      const darkOpt = document.querySelector('option[value="dark"]');
+      if (darkOpt) darkOpt.innerText = t.dark;
+      if (el('saveSettingsBtn')) el('saveSettingsBtn').innerText = t.save;
+      if (el('hideSettingsBtn')) el('hideSettingsBtn').innerText = t.back;
+      const oldPassLabel = document.querySelector('label[for="oldPasswordInput"]');
+      if (oldPassLabel) oldPassLabel.innerText = t.changePass;
+      if (el('oldPasswordInput')) el('oldPasswordInput').setAttribute('placeholder', t.oldPass);
+      if (el('newPasswordInput')) el('newPasswordInput').setAttribute('placeholder', t.newPass);
+      if (el('confirmPasswordInput')) el('confirmPasswordInput').setAttribute('placeholder', t.confirmPass);
+      const replyBox = el('replyBox');
+      if (replyBox && replyBox.querySelector('span.font-semibold')) replyBox.querySelector('span.font-semibold').innerText = t.reply;
+      if (replyBox && replyBox.querySelector('button')) replyBox.querySelector('button').innerText = t.cancel;
+      if (el('msg')) el('msg').setAttribute('placeholder', privateChatUser ? `${t.sendPrivate} ${privateChatUser}...` : t.placeholderMsg);
+      if (el('backToGroupBtn')) el('backToGroupBtn').innerText = t.backToGroup;
+      if (el('changePassBtn')) el('changePassBtn').innerText = t.changePass;
+      // Theme toggle
+      if (el('themeToggle')) el('themeToggle').title = t.themeSwitch;
+    }
+    document.addEventListener('DOMContentLoaded', renderLang);
+
+    // Đặt đoạn này ở cuối script, sau tất cả các khai báo hàm
+    window.login = login;
+    window.register = register;
+    window.showResetPassword = showResetPassword;
+    window.hideResetPassword = hideResetPassword;
+    window.resetPassword = resetPassword;
+    window.showSettings = showSettings;
+    window.hideSettings = hideSettings;
+    window.saveSettings = saveSettings;
+    window.changePassword = changePassword;
+    window.logout = logout;
+    window.send = send;
+    window.switchLanguage = switchLanguage;
+    window.startReply = startReply;
+    window.cancelReply = cancelReply;
+    window.startPrivateChat = startPrivateChat;
+    window.backToGroup = backToGroup;
+    window.showJoinGroupModal = showJoinGroupModal;
+
+    // Dark mode logic
+    function setTheme(theme) {
+      if (theme === 'dark') {
+        document.body.classList.add('dark');
+        document.getElementById('themeIcon').textContent = '☀️';
+      } else {
+        document.body.classList.remove('dark');
+        document.getElementById('themeIcon').textContent = '🌙';
+      }
+      localStorage.setItem('theme', theme);
+    }
+    function toggleTheme() {
+      const isDark = document.body.classList.contains('dark');
+      setTheme(isDark ? 'light' : 'dark');
+    }
+    // Auto detect OS theme on first load
+    (function() {
+      const saved = localStorage.getItem('theme');
+      if (saved) setTheme(saved);
+      else if (window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
+      else setTheme('light');
+    })();
   </script>
 </body>
 </html>
